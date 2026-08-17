@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#2e7d32" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <title>Field Visit Log</title>
+  <style>
+    :root{--green:#2e7d32;--green-d:#1b5e20;--bg:#f6f7f5;--card:#fff;--line:#e2e5e1;--muted:#5c6660;}
+    *{box-sizing:border-box;}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:#1c211e;}
+    header{position:sticky;top:0;z-index:5;background:var(--green);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+    header h1{font-size:17px;margin:0;flex:1;}
+    .pill{font-size:12px;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.2);cursor:default;}
+    .pill.off{background:#b71c1c;} .pill.btn{cursor:pointer;}
+    nav{display:flex;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:47px;z-index:4;}
+    nav button{flex:1;border:0;background:none;padding:11px 4px;font-size:14px;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;}
+    nav button.active{color:var(--green-d);border-bottom-color:var(--green);font-weight:600;}
+    main{padding:14px;max-width:900px;margin:0 auto;}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    @media (max-width:560px){.grid{grid-template-columns:1fr;}}
+    label{display:block;font-size:13px;color:var(--muted);margin:0 0 4px;}
+    .req label::after{content:" *";color:#b71c1c;}
+    input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:15px;background:#fff;}
+    input:focus,select:focus,textarea:focus{outline:2px solid var(--green);border-color:var(--green);}
+    .field{margin-bottom:2px;}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
+    button.btn{border:0;border-radius:8px;padding:11px 16px;font-size:15px;cursor:pointer;}
+    .btn.primary{background:var(--green);color:#fff;} .btn.ghost{background:#fff;color:var(--green-d);border:1px solid var(--green);}
+    .btn.small{padding:7px 12px;font-size:13px;} .btn.danger{background:#fff;color:#b71c1c;border:1px solid #e0b4b4;}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px;}
+    .muted{color:var(--muted);font-size:13px;}
+    table{width:100%;border-collapse:collapse;font-size:13px;} th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap;} th{color:var(--muted);font-weight:600;}
+    .tablewrap{overflow-x:auto;}
+    .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .2s;z-index:20;} .toast.show{opacity:1;}
+    .hidden{display:none;}
+    .badge{display:inline-block;background:#fff3cd;color:#7a5b00;border-radius:6px;padding:2px 8px;font-size:12px;}
+    .farmercard{background:#eef5ee;border:1px solid #cfe0cf;border-radius:8px;padding:10px;font-size:14px;margin-top:6px;}
+    .photos{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+    .photo-slot{width:96px;height:96px;border:1px dashed var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;background:#fafbfa;}
+    .photo-slot img{width:100%;height:100%;object-fit:cover;} .photo-slot .x{position:absolute;top:2px;right:2px;background:#b71c1c;color:#fff;border-radius:50%;width:20px;height:20px;border:0;font-size:12px;cursor:pointer;} .photo-slot label{margin:0;text-align:center;color:var(--muted);font-size:22px;cursor:pointer;}
+    .bar{height:14px;background:var(--green);border-radius:4px;} .bar-row{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:13px;} .bar-row .lab{width:120px;color:var(--muted);} .bar-track{flex:1;background:#eee;border-radius:4px;}
+    .stat{display:inline-block;min-width:90px;margin:0 14px 10px 0;} .stat b{display:block;font-size:24px;color:var(--green-d);}
+    .authwrap{max-width:380px;margin:6vh auto;padding:0 14px;} .tabs{display:flex;margin-bottom:14px;border:1px solid var(--line);border-radius:8px;overflow:hidden;} .tabs button{flex:1;border:0;padding:10px;background:#fff;color:var(--muted);cursor:pointer;font-size:14px;} .tabs button.active{background:var(--green);color:#fff;}
+  </style>
+</head>
+<body>
+
+  <div id="auth" class="authwrap">
+    <h1 style="color:var(--green-d);text-align:center;margin:0 0 4px">Field Visit Log</h1>
+    <p class="muted" style="text-align:center;margin:0 0 18px">Sign in to record field visits</p>
+    <div class="tabs">
+      <button id="tab-signin" class="active" onclick="authTab('signin')">Sign in</button>
+      <button id="tab-register" onclick="authTab('register')">Create profile</button>
+    </div>
+    <div id="pane-signin" class="card">
+      <div class="field req"><label>Staff ID</label><input id="si_id" placeholder="your username / code" /></div>
+      <div class="field req" style="margin-top:10px"><label>PIN</label><input id="si_pin" type="password" inputmode="numeric" placeholder="4-6 digits" /></div>
+      <div class="row"><button class="btn primary" style="flex:1" onclick="signIn()">Sign in</button></div>
+      <p class="muted" id="si_msg" style="margin:10px 0 0"></p>
+    </div>
+    <div id="pane-register" class="card hidden">
+      <div class="field req"><label>Full name</label><input id="rg_name" /></div>
+      <div class="field req" style="margin-top:10px"><label>Staff ID</label><input id="rg_id" placeholder="pick a username / code" /></div>
+      <div class="field" style="margin-top:10px"><label>Mobile</label><input id="rg_phone" inputmode="numeric" /></div>
+      <div class="field req" style="margin-top:10px"><label>Set PIN</label><input id="rg_pin" type="password" inputmode="numeric" placeholder="4-6 digits" /></div>
+      <div class="field req" style="margin-top:10px"><label>Confirm PIN</label><input id="rg_pin2" type="password" inputmode="numeric" /></div>
+      <div class="row"><button class="btn primary" style="flex:1" onclick="register()">Create profile</button></div>
+      <p class="muted" id="rg_msg" style="margin:10px 0 0">Your profile needs admin approval before you can sign in.</p>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
+    <header>
+      <h1>Field Visit Log</h1>
+      <span id="net" class="pill">...</span>
+      <span id="count" class="pill">0</span>
+      <span id="who" class="pill">-</span>
+      <span class="pill btn" onclick="signOut()">Sign out</span>
+    </header>
+    <nav>
+      <button id="tab-new" class="active" onclick="showView('new')">New visit</button>
+      <button id="tab-rec" onclick="showView('rec')">Visits</button>
+      <button id="tab-dash" onclick="showView('dash')">Dashboard</button>
+    </nav>
+    <main>
+      <section id="view-new">
+        <div class="card">
+          <b>1. Find the farmer</b>
+          <div class="grid" style="margin-top:8px">
+            <div class="field"><label>District</label><select id="f_district" onchange="onFilter()"></select></div>
+            <div class="field"><label>Block</label><select id="f_block" onchange="onFilter()"></select></div>
+            <div class="field"><label>GP</label><select id="f_gp" onchange="onFilter()"></select></div>
+            <div class="field"><label>Village</label><select id="f_village" onchange="onFilter()"></select></div>
+          </div>
+          <div class="field" style="margin-top:10px"><label>Search by name or Farmer ID</label><input id="f_search" placeholder="type to filter..." oninput="onFilter()" /></div>
+          <div class="field req" style="margin-top:10px"><label>Select farmer</label><select id="farmer" onchange="onFarmerPick()"></select></div>
+          <div id="farmercard" class="farmercard hidden"></div>
+        </div>
+        <div class="card">
+          <b>2. Visit details</b>
+          <p class="muted" style="margin:6px 0 10px">Date, time and GPS are captured automatically on save.</p>
+          <div class="grid">
+            <div class="field req"><label>Crop stage</label><select id="crop_stage"></select></div>
+            <div class="field req"><label>Condition</label><select id="condition"></select></div>
+            <div class="field req"><label>Purpose of visit</label><select id="purpose"></select></div>
+            <div class="field"><label>GPS (auto)</label><input id="gps_display" readonly placeholder="tap Capture GPS" /></div>
+          </div>
+          <div class="row"><button class="btn ghost small" onclick="captureGPS()">Capture GPS</button></div>
+          <div class="field" style="margin-top:12px"><label>Notes</label><textarea id="notes" rows="2"></textarea></div>
+          <label style="margin-top:12px">Photos (up to 3)</label>
+          <div class="photos" id="photos">
+            <div class="photo-slot" id="slot0"><label for="cam0">+</label><input id="cam0" type="file" accept="image/*" capture="environment" class="hidden" onchange="onPhoto(this,0)"></div>
+            <div class="photo-slot" id="slot1"><label for="cam1">+</label><input id="cam1" type="file" accept="image/*" capture="environment" class="hidden" onchange="onPhoto(this,1)"></div>
+            <div class="photo-slot" id="slot2"><label for="cam2">+</label><input id="cam2" type="file" accept="image/*" capture="environment" class="hidden" onchange="onPhoto(this,2)"></div>
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn primary" onclick="saveVisit()">Save visit</button>
+          <button class="btn ghost" onclick="resetVisit()">Clear</button>
+        </div>
+      </section>
+
+      <section id="view-rec" class="hidden">
+        <div class="card">
+          <div class="row" style="margin-top:0;align-items:center">
+            <span id="unsynced" class="badge">0 not uploaded</span>
+            <button class="btn primary small" onclick="syncNow(true)">Sync now</button>
+            <button class="btn ghost small" onclick="exportCSV()">Export CSV</button>
+          </div>
+          <p class="muted" style="margin:10px 0 0">Visits are saved on this device and upload to your Google Sheet (photos to Drive) when online.</p>
+        </div>
+        <div class="tablewrap card">
+          <table><thead><tr><th>Date</th><th>Farmer</th><th>Village</th><th>Stage</th><th>Condition</th><th>Status</th><th></th></tr></thead><tbody id="rows"></tbody></table>
+        </div>
+      </section>
+
+      <section id="view-dash" class="hidden">
+        <div class="card">
+          <b>Farmer master (program coverage)</b>
+          <p class="muted" style="margin:6px 0 8px">From the farmer list — works offline.</p>
+          <div id="fm_stats"></div>
+          <div style="margin-top:10px" class="muted">Area by crop (ha)</div><div id="fm_crop_area"></div>
+          <div style="margin-top:10px" class="muted">Block-wise area (ha)</div><div id="fm_block_area"></div>
+          <div style="margin-top:10px" class="muted">Top varieties by area (ha)</div><div id="fm_variety_area"></div>
+        </div>
+        <div class="card">
+          <div class="row" style="margin-top:0;align-items:center">
+            <b style="flex:1">Team dashboard (all staff)</b>
+            <button class="btn primary small" onclick="loadTeam()">Refresh</button>
+          </div>
+          <div id="team_stats" style="margin-top:10px"><span class="muted">Tap Refresh to load team totals from the Sheet (needs internet).</span></div>
+          <div id="team_staff" style="margin-top:10px"></div>
+          <div id="team_stage" style="margin-top:10px"></div>
+          <div id="team_day" style="margin-top:10px"></div>
+        </div>
+        <div class="card">
+          <b>This device</b>
+          <div id="stats" style="margin-top:10px"></div>
+          <div id="by_stage" style="margin-top:8px"></div>
+          <div id="by_cond" style="margin-top:8px"></div>
+        </div>
+        <p class="muted">Richer charts live in the Sheet: use the Dashboard menu (Dashboard build/refresh) or point Google Looker Studio at the Sheet.</p>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
