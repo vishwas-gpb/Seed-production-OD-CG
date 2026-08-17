@@ -1,0 +1,4 @@
+district,block,gp,village,farmer_name,father_name,mobile,farmer_id,gender,caste,crop,seed_variety,seed_class,seed_qty_kg,area_ha,date_distribution,date_sowing
+Sample District,Sample Block,Sample GP,Rampur,Ramesh Kumar,Suresh Kumar,,F0001,Male,General,Paddy/Rice,MTU-1010,Certified,30,1.2,2026-06-15,2026-06-25
+Sample District,Sample Block,Sample GP,Rampur,Sita Devi,Mohan Lal,,F0002,Female,OBC,Pigeonpea,ICPL-87,Foundation,12,0.8,2026-06-16,2026-06-28
+Sample District,Sample Block,Lakhanpur GP,Lakhanpur,Abdul Rahman,Karim Khan,,F0003,Male,General,Groundnut,TAG-24,Certified,40,1.0,2026-06-17,2026-06-27
