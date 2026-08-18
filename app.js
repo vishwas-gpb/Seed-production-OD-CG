@@ -1,5 +1,5 @@
 /* Field Visit Log — offline PWA, admin-approved PIN login, roles, SVG graphs. */
-const ENDPOINT = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
+const ENDPOINT = "https://script.google.com/macros/s/AKfycbzL6g-AoOtaXSKjvrqyYK3r_-7zvfz05eDu1REVwS3-Anhp5YY9E6biZCrjbP5XYb_LMw/exec";
 
 const STAGES    = ["Germination","Vegetative","Flowering","Podset","Harvesting"];
 const CONDITION = ["Good","Average","Poor"];
