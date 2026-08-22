@@ -27,6 +27,7 @@ function doPost(e) {
     if (action === "register") return register(body);
     if (action === "login")    return login(body);
     if (action === "stats")    return stats();
+    if (action === "photos")   return photosList();
     return saveVisit(body.visit);
   } catch (err) {
     return json({ status: "error", message: String(err) });
@@ -107,19 +108,33 @@ function savePhotos(photos, id) {
 function stats() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(VISITS);
-  if (!sheet || sheet.getLastRow() < 2) return json({ status: "ok", total: 0, byStaff: {}, byStage: {}, byCondition: {}, byDistrict: {}, perDay: [], farmers: 0 });
+  var empty = { status: "ok", total: 0, byStaff: {}, byStage: {}, byCondition: {}, byDistrict: {}, perDay: [], farmers: 0, visitCounts: {}, perWeek: [], byWeekday: {}, avgRevisitDays: 0, visitedIds: [] };
+  if (!sheet || sheet.getLastRow() < 2) return json(empty);
   var data = sheet.getDataRange().getValues(); var head = data.shift();
   var col = {}; head.forEach(function (h, i) { col[h] = i; });
-  var byStaff = {}, byStage = {}, byCond = {}, byDist = {}, perDay = {}, farmers = {};
+  var byStaff = {}, byStage = {}, byCond = {}, byDist = {}, perDay = {}, perWeek = {}, byWeekday = {}, farmerDates = {};
+  var WD = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   data.forEach(function (r) {
     inc(byStaff, r[col.staff_name]); inc(byStage, r[col.crop_stage]);
     inc(byCond, r[col.condition]); inc(byDist, r[col.district]);
-    inc(perDay, r[col.visit_date]); if (r[col.farmer_id]) farmers[r[col.farmer_id]] = 1;
+    var raw = r[col.visit_date];
+    var ds = (raw instanceof Date) ? raw.toISOString().slice(0,10) : String(raw).slice(0,10);
+    if (ds) { inc(perDay, ds); inc(perWeek, mondayOf(ds)); var wd = new Date(ds).getDay(); if (!isNaN(wd)) inc(byWeekday, WD[wd]); }
+    var fid = r[col.farmer_id]; if (fid) { (farmerDates[fid] = farmerDates[fid] || []).push(ds); }
+  });
+  var visitCounts = { "1 visit": 0, "2 visits": 0, "3+ visits": 0 }, gapSum = 0, gapN = 0;
+  Object.keys(farmerDates).forEach(function (fid) {
+    var d = farmerDates[fid].slice().sort(), n = d.length;
+    if (n === 1) visitCounts["1 visit"]++; else if (n === 2) visitCounts["2 visits"]++; else visitCounts["3+ visits"]++;
+    for (var i = 1; i < n; i++) { var g = (new Date(d[i]) - new Date(d[i-1])) / 86400000; if (g >= 0) { gapSum += g; gapN++; } }
   });
   var days = Object.keys(perDay).sort().slice(-14).map(function (d) { return { date: d, count: perDay[d] }; });
-  return json({ status: "ok", total: data.length, byStaff: byStaff, byStage: byStage,
-    byCondition: byCond, byDistrict: byDist, perDay: days, farmers: Object.keys(farmers).length });
+  var weeks = Object.keys(perWeek).sort().slice(-8).map(function (w) { return { week: w, count: perWeek[w] }; });
+  return json({ status: "ok", total: data.length, byStaff: byStaff, byStage: byStage, byCondition: byCond, byDistrict: byDist,
+    perDay: days, farmers: Object.keys(farmerDates).length, visitCounts: visitCounts, perWeek: weeks, byWeekday: byWeekday,
+    avgRevisitDays: gapN ? Math.round(gapSum / gapN) : 0, visitedIds: Object.keys(farmerDates) });
 }
+function mondayOf(ds) { var dt = new Date(ds); var day = (dt.getDay() + 6) % 7; dt.setDate(dt.getDate() - day); return dt.toISOString().slice(0,10); }
 function inc(o, k) { k = (k === "" || k == null) ? "—" : k; o[k] = (o[k] || 0) + 1; }
 
 /* ---------- native Google-Sheet dashboard (run from the editor or menu) ---------- */
@@ -145,5 +160,27 @@ function buildDashboard() {
     .setOption("title", "Visits by staff").build();
   dash.insertChart(chart);
 }
+
+function photosList() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet(); var sheet = ss.getSheetByName(VISITS);
+  if (!sheet || sheet.getLastRow() < 2) return json({ status: "ok", items: [] });
+  var data = sheet.getDataRange().getValues(); var head = data.shift(); var col = {}; head.forEach(function (h, i) { col[h] = i; });
+  var items = [];
+  for (var j = data.length - 1; j >= 0 && items.length < 300; j--) {
+    var r = data[j];
+    ["photo1","photo2","photo3"].forEach(function (p) {
+      var u = col[p] === undefined ? "" : r[col[p]];
+      if (u) items.push({
+        url: driveThumb(String(u)), open: String(u),
+        farmer_name: r[col.farmer_name], village: r[col.village], crop: r[col.crop], seed_variety: r[col.seed_variety],
+        area_ha: r[col.area_ha], lat: r[col.lat], lon: r[col.lon], visit_date: fmtDate(r[col.visit_date]),
+        crop_stage: r[col.crop_stage], condition: r[col.condition]
+      });
+    });
+  }
+  return json({ status: "ok", items: items });
+}
+function driveThumb(u) { var m = u.match(/[-\w]{25,}/); return m ? "https://drive.google.com/thumbnail?id=" + m[0] + "&sz=w1000" : u; }
+function fmtDate(d) { return d instanceof Date ? d.toISOString().slice(0,10) : String(d).slice(0,10); }
 
 function json(obj) { return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON); }
