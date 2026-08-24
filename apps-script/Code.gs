@@ -108,11 +108,11 @@ function savePhotos(photos, id) {
 function stats() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(VISITS);
-  var empty = { status: "ok", total: 0, byStaff: {}, byStage: {}, byCondition: {}, byDistrict: {}, perDay: [], farmers: 0, visitCounts: {}, perWeek: [], byWeekday: {}, avgRevisitDays: 0, visitedIds: [] };
+  var empty = { status: "ok", total: 0, byStaff: {}, byStage: {}, byCondition: {}, byDistrict: {}, perDay: [], farmers: 0, visitCounts: {}, perWeek: [], byWeekday: {}, avgRevisitDays: 0, visitedIds: [], points: [] };
   if (!sheet || sheet.getLastRow() < 2) return json(empty);
   var data = sheet.getDataRange().getValues(); var head = data.shift();
   var col = {}; head.forEach(function (h, i) { col[h] = i; });
-  var byStaff = {}, byStage = {}, byCond = {}, byDist = {}, perDay = {}, perWeek = {}, byWeekday = {}, farmerDates = {};
+  var byStaff = {}, byStage = {}, byCond = {}, byDist = {}, perDay = {}, perWeek = {}, byWeekday = {}, farmerDates = {}, points = [];
   var WD = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
   data.forEach(function (r) {
     inc(byStaff, r[col.staff_name]); inc(byStage, r[col.crop_stage]);
@@ -121,6 +121,9 @@ function stats() {
     var ds = (raw instanceof Date) ? raw.toISOString().slice(0,10) : String(raw).slice(0,10);
     if (ds) { inc(perDay, ds); inc(perWeek, mondayOf(ds)); var wd = new Date(ds).getDay(); if (!isNaN(wd)) inc(byWeekday, WD[wd]); }
     var fid = r[col.farmer_id]; if (fid) { (farmerDates[fid] = farmerDates[fid] || []).push(ds); }
+    var la = r[col.lat], lo = r[col.lon];
+    if (la !== "" && lo !== "" && la != null && lo != null)
+      points.push({ lat: la, lon: lo, condition: r[col.condition], farmer_name: r[col.farmer_name], village: r[col.village], crop: r[col.crop], visit_date: ds });
   });
   var visitCounts = { "1 visit": 0, "2 visits": 0, "3+ visits": 0 }, gapSum = 0, gapN = 0;
   Object.keys(farmerDates).forEach(function (fid) {
@@ -132,7 +135,7 @@ function stats() {
   var weeks = Object.keys(perWeek).sort().slice(-8).map(function (w) { return { week: w, count: perWeek[w] }; });
   return json({ status: "ok", total: data.length, byStaff: byStaff, byStage: byStage, byCondition: byCond, byDistrict: byDist,
     perDay: days, farmers: Object.keys(farmerDates).length, visitCounts: visitCounts, perWeek: weeks, byWeekday: byWeekday,
-    avgRevisitDays: gapN ? Math.round(gapSum / gapN) : 0, visitedIds: Object.keys(farmerDates) });
+    avgRevisitDays: gapN ? Math.round(gapSum / gapN) : 0, visitedIds: Object.keys(farmerDates), points: points.slice(-300) });
 }
 function mondayOf(ds) { var dt = new Date(ds); var day = (dt.getDay() + 6) % 7; dt.setDate(dt.getDate() - day); return dt.toISOString().slice(0,10); }
 function inc(o, k) { k = (k === "" || k == null) ? "—" : k; o[k] = (o[k] || 0) + 1; }
