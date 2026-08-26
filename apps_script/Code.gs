@@ -83,6 +83,14 @@ function saveVisit(v) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(VISITS) || ss.insertSheet(VISITS);
   if (sheet.getLastRow() === 0) sheet.appendRow(V_HEADERS);
+  // duplicate guard: same farmer + same staff + same date
+  if (sheet.getLastRow() > 1) {
+    var chk = sheet.getDataRange().getValues(); var ch = chk.shift(); var ci = {}; ch.forEach(function (h, i) { ci[h] = i; });
+    for (var k = 0; k < chk.length; k++) {
+      if (String(chk[k][ci.farmer_id]) === String(v.farmer_id) && String(chk[k][ci.staff_id]) === String(v.staff_id) && fmtDate(chk[k][ci.visit_date]) === String(v.visit_date))
+        return json({ status: "duplicate", visit_id: v.visit_id });
+    }
+  }
   var urls = savePhotos(v.photos || [], v.visit_id);
 
   // Build the row as a key->value object. Client-only fields are dropped.
@@ -99,6 +107,7 @@ function saveVisit(v) {
     if (headers.indexOf(k) === -1) { headers.push(k); sheet.getRange(1, headers.length).setValue(k); }
   });
   sheet.appendRow(headers.map(function (h) { return rowObj[h] !== undefined ? rowObj[h] : ""; }));
+  try { CacheService.getScriptCache().removeAll(["stats", "photos"]); } catch (e) {}
   return json({ status: "ok", visit_id: v.visit_id });
 }
 function savePhotos(photos, id) {
@@ -183,7 +192,7 @@ function photosList() {
     ["photo1","photo2","photo3"].forEach(function (p) {
       var u = col[p] === undefined ? "" : r[col[p]];
       if (u) items.push({
-        url: driveThumb(String(u)), open: String(u),
+        url: driveThumb(String(u), 400), full: driveThumb(String(u), 1200), open: String(u),
         farmer_name: r[col.farmer_name], village: r[col.village], crop: r[col.crop], seed_variety: r[col.seed_variety],
         area_ha: r[col.area_ha], lat: r[col.lat], lon: r[col.lon], visit_date: fmtDate(r[col.visit_date]),
         crop_stage: r[col.crop_stage], condition: r[col.condition]
@@ -192,7 +201,7 @@ function photosList() {
   }
   return json({ status: "ok", items: items });
 }
-function driveThumb(u) { var m = u.match(/[-\w]{25,}/); return m ? "https://drive.google.com/thumbnail?id=" + m[0] + "&sz=w1000" : u; }
+function driveThumb(u, size) { var m = u.match(/[-\w]{25,}/); return m ? "https://drive.google.com/thumbnail?id=" + m[0] + "&sz=w" + (size || 1000) : u; }
 function fmtDate(d) { return d instanceof Date ? d.toISOString().slice(0,10) : String(d).slice(0,10); }
 
 function json(obj) { return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON); }
