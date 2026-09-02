@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#2e7d32" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="vendor/leaflet.min.css" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <title>Field Visit Log</title>
+  <style>
+    :root{--green:#2e7d32;--green-d:#1b5e20;--bg:#f6f7f5;--card:#fff;--line:#e2e5e1;--muted:#5c6660;}
+    *{box-sizing:border-box;}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:#1c211e;}
+    header{position:sticky;top:0;z-index:5;background:var(--green);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+    header h1{font-size:17px;margin:0;flex:1;}
+    .pill{font-size:12px;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.2);cursor:default;}
+    .pill.off{background:#b71c1c;} .pill.btn{cursor:pointer;}
+    nav{display:flex;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:47px;z-index:4;}
+    nav button{flex:1;border:0;background:none;padding:11px 4px;font-size:14px;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;}
+    nav button.active{color:var(--green-d);border-bottom-color:var(--green);font-weight:600;}
+    main{padding:14px;max-width:900px;margin:0 auto;}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    @media (max-width:560px){.grid{grid-template-columns:1fr;}}
+    label{display:block;font-size:13px;color:var(--muted);margin:0 0 4px;}
+    .req label::after{content:" *";color:#b71c1c;}
+    input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;font-size:15px;background:#fff;}
+    input:focus,select:focus,textarea:focus{outline:2px solid var(--green);border-color:var(--green);}
+    .field{margin-bottom:2px;}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
+    button.btn{border:0;border-radius:8px;padding:11px 16px;font-size:15px;cursor:pointer;}
+    .btn.primary{background:var(--green);color:#fff;} .btn.ghost{background:#fff;color:var(--green-d);border:1px solid var(--green);}
+    .btn.small{padding:7px 12px;font-size:13px;} .btn.danger{background:#fff;color:#b71c1c;border:1px solid #e0b4b4;}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px;}
+    .muted{color:var(--muted);font-size:13px;}
+    table{width:100%;border-collapse:collapse;font-size:13px;} th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap;} th{color:var(--muted);font-weight:600;}
+    .tablewrap{overflow-x:auto;}
+    .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .2s;z-index:20;} .toast.show{opacity:1;}
+    .hidden{display:none!important;}
+    .badge{display:inline-block;background:#fff3cd;color:#7a5b00;border-radius:6px;padding:2px 8px;font-size:12px;}
+    .farmercard{background:#eef5ee;border:1px solid #cfe0cf;border-radius:8px;padding:10px;font-size:14px;margin-top:6px;}
+    .results{position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--line);border-radius:8px;max-height:240px;overflow:auto;z-index:6;box-shadow:0 6px 16px rgba(0,0,0,.12);}
+    .res{padding:9px 10px;font-size:14px;border-bottom:1px solid var(--line);cursor:pointer;} .res:hover{background:#eef5ee;}
+    .photos{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+    .photo-slot{width:96px;height:96px;border:1px dashed var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;background:#fafbfa;}
+    .photo-slot img{width:100%;height:100%;object-fit:cover;} .photo-slot .x{position:absolute;top:2px;right:2px;background:#b71c1c;color:#fff;border-radius:50%;width:20px;height:20px;border:0;font-size:12px;cursor:pointer;} .photo-slot label{margin:0;text-align:center;color:var(--muted);font-size:22px;cursor:pointer;}
+    .stat{display:inline-block;min-width:90px;margin:0 14px 10px 0;} .stat b{display:block;font-size:24px;color:var(--green-d);}
+    .authwrap{max-width:380px;margin:6vh auto;padding:0 14px;} .tabs{display:flex;margin-bottom:14px;border:1px solid var(--line);border-radius:8px;overflow:hidden;} .tabs button{flex:1;border:0;padding:10px;background:#fff;color:var(--muted);cursor:pointer;font-size:14px;} .tabs button.active{background:var(--green);color:#fff;}
+    .ic,[data-icon] svg{vertical-align:middle;}
+    .okic{color:var(--green);} nav button svg{margin-right:2px;}
+    #flash{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:30;}
+    #flash .fc{background:var(--green);color:#fff;border-radius:50%;width:92px;height:92px;display:flex;align-items:center;justify-content:center;transform:scale(0);opacity:0;}
+    #flash.show .fc{animation:pop .95s ease;}
+    @keyframes pop{0%{transform:scale(0);opacity:0}25%{transform:scale(1);opacity:1}70%{transform:scale(1);opacity:1}100%{transform:scale(1.12);opacity:0}}
+    .locating{animation:blink 1s ease-in-out infinite;} @keyframes blink{50%{opacity:.4}}
+    .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;}
+    .thumb{aspect-ratio:1;border-radius:8px;overflow:hidden;background:#eaeae7;cursor:pointer;}
+    .thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+    #lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:40;display:flex;align-items:center;justify-content:center;flex-direction:column;}
+    #lightbox img{max-width:94vw;max-height:72vh;object-fit:contain;border-radius:6px;}
+    .lb-foot{color:#fff;font-size:13px;text-align:center;padding:12px 16px;max-width:620px;line-height:1.55;}
+    .lb-x{position:absolute;top:10px;right:16px;background:none;border:0;color:#fff;font-size:30px;cursor:pointer;line-height:1;}
+    .lb-prev,.lb-next{position:absolute;top:50%;transform:translateY(-50%);background:none;border:0;color:#fff;font-size:46px;cursor:pointer;padding:0 12px;line-height:1;}
+    .lb-prev{left:2px;} .lb-next{right:2px;}
+    .band{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-top:8px;-webkit-overflow-scrolling:touch;}
+    .chip{flex:none;border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:999px;padding:5px 11px;font-size:13px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;}
+    .chip.active{background:var(--green);color:#fff;border-color:var(--green);}
+    .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;}
+    .kpi{background:#eef5ee;border:1px solid #cfe0cf;border-radius:10px;padding:10px 12px;}
+    .kpi-v{font-size:23px;font-weight:600;color:var(--green-d);line-height:1.1;} .kpi-l{font-size:12px;color:var(--muted);margin-top:2px;}
+    .traffic{display:flex;flex-direction:column;gap:5px;}
+    .tl{display:flex;align-items:center;gap:8px;font-size:13px;} .tl .dot{width:12px;height:12px;border-radius:50%;flex:none;} .tl-b{flex:1;} .tl-p{width:44px;text-align:right;font-weight:600;}
+    .leaflet-container{font:inherit;border-radius:10px;}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+    .card{animation:fadeUp .4s ease both;}
+    .kpi{animation:fadeUp .5s ease both;}
+  </style>
+</head>
+<body>
+
+  <div id="auth" class="authwrap">
+    <h1 style="color:var(--green-d);text-align:center;margin:0 0 4px">Field Visit Log</h1>
+    <div class="tabs">
+      <button id="tab-signin" class="active" onclick="authTab('signin')">Sign in</button>
+      <button id="tab-register" onclick="authTab('register')">Create profile</button>
+    </div>
+    <div id="pane-signin" class="card">
+      <div class="field req"><label>Staff ID</label><input id="si_id" autocomplete="off" /></div>
+      <div class="field req" style="margin-top:10px"><label>PIN</label><input id="si_pin" type="password" inputmode="numeric" /></div>
+      <div class="row"><button class="btn primary" style="flex:1" onclick="signIn()">Sign in</button></div>
+      <p class="muted" id="si_msg" style="margin:10px 0 0"></p>
+    </div>
+    <div id="pane-register" class="card hidden">
+      <div class="field req"><label>Full name</label><input id="rg_name" /></div>
+      <div class="field req" style="margin-top:10px"><label>Staff ID</label><input id="rg_id" autocomplete="off" /></div>
+      <div class="field" style="margin-top:10px"><label>Mobile</label><input id="rg_phone" inputmode="numeric" /></div>
+      <div class="field req" style="margin-top:10px"><label>Set PIN</label><input id="rg_pin" type="password" inputmode="numeric" /></div>
+      <div class="field req" style="margin-top:10px"><label>Confirm PIN</label><input id="rg_pin2" type="password" inputmode="numeric" /></div>
+      <div class="row"><button class="btn primary" style="flex:1" onclick="register()">Create profile</button></div>
+      <p class="muted" id="rg_msg" style="margin:10px 0 0"></p>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
+    <header>
+      <h1>Field Visit Log</h1>
+      <span id="net" class="pill">...</span>
+      <span id="count" class="pill">0</span>
+      <span id="who" class="pill">-</span>
+      <span class="pill btn" onclick="signOut()"><span data-icon="log-out" data-size="13"></span></span>
+    </header>
+    <nav>
+      <button id="tab-new" class="active" onclick="showView('new')"><span data-icon="clipboard-pen" data-size="16"></span> New visit</button>
+      <button id="tab-rec" onclick="showView('rec')"><span data-icon="list" data-size="16"></span> Visits</button>
+      <button id="tab-review" onclick="showView('review')" style="display:none"><span data-icon="clipboard-pen" data-size="16"></span> Review</button>
+      <button id="tab-farmers" onclick="showView('farmers')" style="display:none"><span data-icon="user" data-size="16"></span> Farmers</button>
+      <button id="tab-photos" onclick="showView('photos')"><span data-icon="camera" data-size="16"></span> Photos</button>
+      <button id="tab-dash" onclick="showView('dash')"><span data-icon="chart-column" data-size="16"></span> Coverage</button>
+    </nav>
+    <main>
+      <section id="view-new">
+        <div class="card">
+          <b><span data-icon="user" data-size="16"></span> Find the farmer</b>
+          <div class="grid" style="margin-top:8px">
+            <div class="field"><label>State</label><select id="f_state" onchange="onFilter()"></select></div>
+            <div class="field"><label>Agency</label><select id="f_agency" onchange="onFilter()"></select></div>
+            <div class="field"><label>District</label><select id="f_district" onchange="onFilter()"></select></div>
+            <div class="field"><label>Block</label><select id="f_block" onchange="onFilter()"></select></div>
+            <div class="field"><label>GP</label><select id="f_gp" onchange="onFilter()"></select></div>
+            <div class="field"><label>Village</label><select id="f_village" onchange="onFilter()"></select></div>
+          </div>
+          <div class="field req" style="margin-top:10px;position:relative">
+            <label>Farmer</label>
+            <input id="farmer_search" autocomplete="off" placeholder="type name or Farmer ID, then pick" oninput="onFarmerSearch()" onfocus="onFarmerSearch()" />
+            <div id="farmer_results" class="results hidden"></div>
+          </div>
+          <div id="farmercard" class="farmercard hidden"></div>
+        </div>
+        <div class="card">
+          <b><span data-icon="leaf" data-size="16"></span> Visit details</b>
+          <div class="grid" style="margin-top:10px">
+            <div class="field req"><label>Crop stage</label><select id="crop_stage"></select></div>
+            <div class="field req"><label>Condition</label><select id="condition"></select></div>
+            <div class="field req"><label>Purpose of visit</label><select id="purpose"></select></div>
+            <div class="field"><label><span data-icon="map-pin" data-size="13"></span> GPS (auto)</label><input id="gps_display" readonly /></div>
+          </div>
+          <div class="row"><button class="btn ghost small" onclick="captureGPS()"><span data-icon="locate-fixed" data-size="15"></span> Capture GPS</button></div>
+          <div class="field" style="margin-top:12px"><label>Immediate actions</label><textarea id="immediate_actions" rows="2"></textarea></div>
+          <div class="field" style="margin-top:12px"><label>Notes</label><textarea id="notes" rows="2"></textarea></div>
+          <label style="margin-top:12px"><span data-icon="camera" data-size="14"></span> Photos (up to 3)</label>
+          <div class="photos" id="photos">
+            <div class="photo-slot" id="slot0"><label for="cam0"><span data-icon="camera" data-size="22"></span></label><input id="cam0" type="file" accept="image/*" capture="environment" class="hidden" onchange="onPhoto(this,0)"></div>
+            <div class="photo-slot" id="slot1"><label for="cam1"><span data-icon="camera" data-size="22"></span></label><input id="cam1" type="file" accept="image/*" capture="environment" class="hidden" onchange="onPhoto(this,1)"></div>
+            <div class="photo-slot" id="slot2"><label for="cam2"><span data-icon="camera" data-size="22"></span></label><input id="cam2" type="file" accept="image/*" capture="environment" class="hidden" onchange="onPhoto(this,2)"></div>
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn primary" onclick="saveVisit()"><span data-icon="check" data-size="16"></span> Save visit</button>
+          <button class="btn ghost" onclick="resetVisit()">Clear</button>
+        </div>
+      </section>
+
+      <section id="view-rec" class="hidden">
+        <div class="card">
+          <div class="row" style="margin-top:0;align-items:center">
+            <span id="unsynced" class="badge">0 not uploaded</span>
+            <button class="btn primary small" onclick="syncNow(true)"><span data-icon="refresh-cw" data-size="14"></span> Sync now</button>
+            <button class="btn ghost small" onclick="exportCSV()">Export CSV</button>
+          </div>
+        </div>
+        <div class="tablewrap card">
+          <table><thead><tr><th>Date</th><th>Farmer</th><th>Village</th><th>Stage</th><th>Condition</th><th>Status</th><th></th></tr></thead><tbody id="rows"></tbody></table>
+          <div id="empty_visits" class="hidden" style="text-align:center;padding:26px 10px;color:var(--muted)">
+            <svg width="84" height="84" viewBox="0 0 86 86" fill="none" stroke="#9bbf9b" stroke-width="2"><circle cx="43" cy="43" r="40" stroke-dasharray="5 6"/><path d="M43 58 V41" stroke="#2e7d32"/><path d="M43 45 C43 37 36 34 30 34 C30 42 37 45 43 45Z" fill="#cfe0cf" stroke="#2e7d32"/><path d="M43 41 C43 34 49 31 55 31 C55 38 49 41 43 41Z" fill="#eef5ee" stroke="#2e7d32"/></svg>
+            <div style="margin-top:8px">No visits logged yet.<br>Your saved visits will appear here.</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-review" class="hidden">
+        <div class="card">
+          <div class="row" style="margin-top:0;align-items:center"><b style="flex:1"><span data-icon="clipboard-pen" data-size="16"></span> Review visits</b><button class="btn ghost small" onclick="loadVisits(true).then(renderReviewList)"><span data-icon="refresh-cw" data-size="14"></span> Reload</button></div>
+          <div id="review_list" style="margin-top:10px;max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:8px"></div>
+        </div>
+        <div id="review_form" class="card hidden">
+          <div id="rv_head"></div>
+          <div id="rv_photos" style="margin-top:8px"></div>
+          <div class="field" style="margin-top:10px"><label>Condition assessment</label><select id="rv_condition"><option value="">- select -</option><option>Good</option><option>Average</option><option>Poor</option></select></div>
+          <div class="field" style="margin-top:10px"><label>Comment</label><textarea id="rv_comment" rows="2"></textarea></div>
+          <div class="field" style="margin-top:10px"><label>Actions to be taken (by next visit)</label><textarea id="rv_actions" rows="2"></textarea></div>
+          <div class="field" style="margin-top:10px"><label>Next visit / inspection date</label><input id="rv_next" type="date"></div>
+          <label style="margin-top:10px;display:flex;align-items:center;gap:8px"><input id="rv_done" type="checkbox" style="width:auto"> Actions completed</label>
+          <div class="row"><button class="btn primary" onclick="saveReview()"><span data-icon="check" data-size="16"></span> Save review</button><button class="btn ghost" onclick="closeReview()">Close</button></div>
+        </div>
+      </section>
+      <section id="view-farmers" class="hidden">
+        <div class="card">
+          <b><span data-icon="user" data-size="16"></span> Farmer directory</b>
+          <div class="grid" style="margin-top:8px">
+            <div class="field"><label>State</label><select id="fd_state" onchange="fdFilter()"></select></div>
+            <div class="field"><label>Agency</label><select id="fd_agency" onchange="fdFilter()"></select></div>
+            <div class="field"><label>District</label><select id="fd_district" onchange="fdFilter()"></select></div>
+            <div class="field"><label>Block</label><select id="fd_block" onchange="fdFilter()"></select></div>
+            <div class="field"><label>GP</label><select id="fd_gp" onchange="fdFilter()"></select></div>
+            <div class="field"><label>Village</label><select id="fd_village" onchange="fdFilter()"></select></div>
+          </div>
+          <input id="fd_search" placeholder="then search by name or Farmer ID" oninput="renderFarmerDir()" style="margin-top:10px" />
+          <div id="fd_results" style="margin-top:8px;max-height:280px;overflow:auto;border:1px solid var(--line);border-radius:8px"></div>
+          <div id="fd_card" class="farmercard hidden" style="margin-top:10px"></div>
+          <div id="fd_timeline"></div>
+        </div>
+      </section>
+      <section id="view-photos" class="hidden">
+        <div class="card">
+          <div class="row" style="margin-top:0;align-items:center;gap:8px">
+            <select id="gal_source" onchange="loadGallery()" style="max-width:150px"><option value="device">This device</option><option value="team">Team (all staff)</option></select>
+            <select id="gal_sort" onchange="sortGallery()" style="max-width:150px"><option value="new">Newest first</option><option value="old">Oldest first</option><option value="farmer">Farmer A-Z</option><option value="crop">Crop</option><option value="village">Village</option></select>
+            <button class="btn ghost small" onclick="loadGallery(true)"><span data-icon="refresh-cw" data-size="14"></span> Reload</button>
+          </div>
+          <div id="gal_time" class="band"></div>
+          <div id="gal_crops" class="band"></div>
+          <div id="gallery" class="gallery" style="margin-top:12px"></div>
+        </div>
+      </section>
+      <section id="view-dash" class="hidden">
+        <div class="card">
+          <b><span data-icon="clipboard-pen" data-size="16"></span> Attention required</b>
+          <div id="attention" style="margin-top:8px"><span class="muted">Loads with the team dashboard.</span></div>
+        </div>
+        <div class="card">
+          <b><span data-icon="chart-column" data-size="16"></span> Program coverage</b>
+          <div id="fm_stats" class="kpis" style="margin-top:10px"></div>
+          <div class="grid" style="margin-top:14px">
+            <div><div class="muted">Area by state (ha)</div><div style="position:relative;height:190px"><canvas id="fm_state_area"></canvas></div></div>
+            <div><div class="muted">Area by agency (ha)</div><div style="position:relative;height:190px"><canvas id="fm_agency_area"></canvas></div></div>
+          </div>
+          <div class="muted" style="margin-top:14px">Area by crop (ha)</div><div style="position:relative;height:200px;margin-top:4px"><canvas id="fm_crop_area"></canvas></div>
+          <div class="muted" style="margin-top:14px">Block-wise area (ha)</div><div style="position:relative;height:200px;margin-top:4px"><canvas id="fm_block_area"></canvas></div>
+          <div class="muted" style="margin-top:14px">Top varieties by area (ha)</div><div style="position:relative;height:220px;margin-top:4px"><canvas id="fm_variety_area"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="row" style="margin-top:0;align-items:center"><b style="flex:1">Team dashboard (all staff)</b><button class="btn primary small" onclick="loadTeam(true)"><span data-icon="refresh-cw" data-size="14"></span> Refresh</button></div>
+          <div id="kpi" class="kpis" style="margin-top:10px"><span class="muted">Tap Refresh to load (needs internet).</span></div>
+          <div class="muted" style="margin-top:14px">Where visits happened</div>
+          <div id="map" style="height:260px;border-radius:10px;margin-top:6px;background:#eaeae7"></div>
+          <div class="muted" style="margin-top:5px;font-size:12px"><span style="color:#1565c0">&#9679;</span> villages &nbsp; <span style="color:#2e7d32">&#9679;</span> good &nbsp; <span style="color:#f9a825">&#9679;</span> average &nbsp; <span style="color:#c62828">&#9679;</span> poor</div>
+          <div class="muted" style="margin-top:14px">Visits per week</div><div style="position:relative;height:150px;margin-top:4px"><canvas id="ch_week"></canvas></div>
+          <div class="muted" style="margin-top:14px">Visits by condition</div><div style="position:relative;height:180px;margin-top:4px"><canvas id="ch_cond"></canvas></div>
+          <div class="muted" style="margin-top:14px">Visits by staff</div><div style="position:relative;height:200px;margin-top:4px"><canvas id="ch_staff"></canvas></div>
+          <div class="muted" style="margin-top:14px">Coverage by block (green = good, amber = partial, red = low/none)</div><div id="traffic" class="traffic" style="margin-top:6px"></div>
+        </div>
+        <div class="card">
+          <b><span data-icon="refresh-cw" data-size="16"></span> How routinely fields are visited</b>
+          <div id="rc_stats" style="margin-top:10px"><span class="muted">Tap Refresh above to load (needs internet).</span></div>
+          <div class="muted" style="margin-top:12px">Farmers by number of visits</div><div id="rc_visitcounts"></div>
+          <div class="muted" style="margin-top:12px">Visits per week</div><div id="rc_perweek"></div>
+          <div class="muted" style="margin-top:12px">Visits by weekday</div><div id="rc_weekday"></div>
+        </div>
+        <div class="card">
+          <div class="row" style="margin-top:0;align-items:center">
+            <b style="flex:1"><span data-icon="user" data-size="16"></span> Farmers not yet visited</b>
+            <button class="btn ghost small" onclick="exportNotVisited()"><span data-icon="list" data-size="14"></span> Export</button>
+          </div>
+          <div id="nv_count" class="muted" style="margin-top:8px"></div>
+          <input id="nv_search" placeholder="filter by name, village or ID" oninput="renderNotVisited()" style="margin-top:8px" />
+          <div id="nv_list" style="margin-top:8px;max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:8px"></div>
+        </div>
+        <div class="card">
+          <b>This device</b>
+          <div id="stats" style="margin-top:10px"></div>
+          <div class="muted" style="margin-top:12px">Visits by crop stage</div><div id="by_stage"></div>
+          <div class="muted" style="margin-top:12px">Visits by condition</div><div id="by_cond"></div>
+          <div class="muted" style="margin-top:12px">Your visits per week</div><div id="dev_perweek"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="lightbox" class="hidden" onclick="if(event.target.id==='lightbox')lbClose()">
+    <button class="lb-x" onclick="lbClose()">&times;</button>
+    <button class="lb-prev" onclick="lbNav(-1)">&lsaquo;</button>
+    <img id="lb_img" src="" alt="">
+    <button class="lb-next" onclick="lbNav(1)">&rsaquo;</button>
+    <div id="lb_foot" class="lb-foot"></div>
+  </div>
+  <div id="flash"><div class="fc"></div></div>
+  <div id="toast" class="toast"></div>
+  <script src="vendor/chart.umd.js"></script>
+  <script src="vendor/leaflet.min.js"></script>
+  <script src="icons.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
