@@ -1,6 +1,6 @@
 // Service worker for the Field Visit Log PWA. Plain static app, so a simple
 // precache of a known file list is reliable. Bump CACHE on every change.
-const CACHE = "fieldvisit-v19";
+const CACHE = "fieldvisit-v20";
 const ASSETS = ["./","./index.html","./app.js","./icons.js","./manifest.json","./farmers.csv","./icon-192.png","./icon-512.png","./vendor/chart.umd.js","./vendor/leaflet.min.js","./vendor/leaflet.min.css"];
 self.addEventListener("install",e=>{ self.skipWaiting(); e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))); });
 self.addEventListener("activate",e=>{ e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())); });
