@@ -1,0 +1,52 @@
+name: smoke
+on: [push, pull_request]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: JavaScript parses
+        run: |
+          node -e "new Function(require('fs').readFileSync('app.js','utf8'))"
+          node -e "new Function(require('fs').readFileSync('icons.js','utf8'))"
+
+      - name: Code.gs braces balanced
+        run: node -e "const s=require('fs').readFileSync('apps-script/Code.gs','utf8'); if(s.split('{').length!==s.split('}').length){console.error('Code.gs brace imbalance');process.exit(1)}"
+
+      - name: Required files present (catches missing vendor libs)
+        run: |
+          for f in index.html app.js icons.js sw.js manifest.json farmers.csv \
+                   vendor/chart.umd.js vendor/leaflet.min.js vendor/leaflet.min.css; do
+            test -f "$f" || { echo "MISSING FILE: $f"; exit 1; }
+          done
+
+      - name: Inline handlers resolve to defined functions
+        run: |
+          node -e '
+            const fs=require("fs");
+            const html=fs.readFileSync("index.html","utf8");
+            const app=fs.readFileSync("app.js","utf8");
+            const used=[...html.matchAll(/(?:onclick|oninput|onchange|onfocus)="([a-zA-Z_]+)/g)].map(m=>m[1]);
+            const defined=new Set([...app.matchAll(/function ([a-zA-Z_]+)/g)].map(m=>m[1]));
+            const miss=[...new Set(used)].filter(n=>n!=="if" && !defined.has(n));
+            if(miss.length){ console.error("Unresolved inline handlers:",miss); process.exit(1); }
+            console.log("handlers ok");
+          '
+
+      - name: index.html has the element ids app.js needs (catches stale index.html)
+        run: |
+          node -e '
+            const fs=require("fs");
+            const html=fs.readFileSync("index.html","utf8");
+            const ids=["auth","app","kpi","map","gallery","lightbox","fm_state_area","tab-farmers","farmer_search","gps_display"];
+            const missing=ids.filter(id=>!html.includes("id=\"" + id + "\""));
+            if(missing.length){ console.error("index.html missing ids (stale?):",missing); process.exit(1); }
+            console.log("ids ok");
+          '
+
+      - name: Service worker cache version present
+        run: node -e "const s=require('fs').readFileSync('sw.js','utf8'); if(!/fieldvisit-v\d+/.test(s)){console.error('sw.js cache version missing');process.exit(1)}"
