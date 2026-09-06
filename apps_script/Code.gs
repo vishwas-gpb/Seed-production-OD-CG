@@ -95,7 +95,7 @@ function saveVisit(v) {
   if (sheet.getLastRow() > 1) {
     var chk = sheet.getDataRange().getValues(); var ch = chk.shift(); var ci = {}; ch.forEach(function (h, i) { ci[h] = i; });
     for (var k = 0; k < chk.length; k++) {
-      if (String(chk[k][ci.farmer_id]) === String(v.farmer_id) && String(chk[k][ci.staff_id]) === String(v.staff_id) && fmtDate(chk[k][ci.visit_date]) === String(v.visit_date))
+      if (String(chk[k][ci.farmer_id]) === String(v.farmer_id) && String(chk[k][ci.staff_id]) === String(v.staff_id) && fmtDate(chk[k][ci.visit_date]) === String(v.visit_date) && String(chk[k][ci.seed_variety] || "") === String(v.seed_variety || "") && String(chk[k][ci.crop] || "") === String(v.crop || ""))
         return json({ status: "duplicate", visit_id: v.visit_id });
     }
   }
