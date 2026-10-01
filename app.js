@@ -3,6 +3,7 @@ const ENDPOINT = "https://script.google.com/macros/s/AKfycbxTX7bEkx5r9fKEerfKli8
 // Set this to the SAME long random string you put as SECRET in Code.gs.
 const TOKEN = "KVSSLODCG";
 
+
 const STAGES    = ["Germination","Vegetative","Flowering","Podset","Harvesting"];
 const CONDITION = ["Good","Average","Poor"];
 const PURPOSES  = ["Routine monitoring","Pest / disease check","Roguing guidance","Crop stage assessment","Harvest assessment","Input / advisory","Other"];
@@ -388,7 +389,7 @@ function renderFarmerDir(){
   el("fd_results").innerHTML = shown.length ? (shown.map(f=>"<div class='res' data-i='"+FARMERS.indexOf(f)+"'>"+esc(f.farmer_name||"?")+" - "+esc(f.village||"")+" - "+esc(f.farmer_id||"")+(f.crop||f.seed_variety?" <span class='muted'>["+esc(f.crop||"")+(f.seed_variety?" / "+esc(f.seed_variety):"")+"]</span>":"")+"</div>").join("")+(total>100?"<div class='muted' style='padding:8px'>+"+(total-100)+" more - refine search</div>":"")) : "<div class='muted' style='padding:8px'>"+(FARMERS.length?"No matching farmer":"Farmer list not loaded")+"</div>";
   el("fd_results").querySelectorAll(".res[data-i]").forEach(r=>r.addEventListener("click",()=>pickFarmerDir(Number(r.dataset.i))));
 }
-async function pickFarmerDir(idx){ const f=FARMERS[idx]; if(!f) return; el("fd_card").classList.remove("hidden"); el("fd_card").innerHTML=farmerCardHTML(f); if(el("fd_timeline")) el("fd_timeline").innerHTML="<div class='muted' style='margin-top:8px'>Loading history...</div>"; await loadVisits(false); renderTimeline(f.farmer_id); }
+async function pickFarmerDir(idx){ const f=FARMERS[idx]; if(!f) return; el("fd_card").classList.remove("hidden"); el("fd_card").innerHTML=farmerCardHTML(f); if(el("fd_timeline")) el("fd_timeline").innerHTML="<div class='muted' style='margin-top:8px'>Loading history...</div>"; await loadVisits(false); renderTimeline(f.farmer_id, f.crop, f.seed_variety); }
 let ALL_VISITS=[], VISITS_LOADED=false, REVIEW_VID=null;
 async function loadVisits(force){
   if(ENDPOINT.indexOf("PASTE_YOUR")===0) return;
@@ -423,16 +424,30 @@ async function saveReview(){
   try{ const out=await api({action:"review",review:rev}); if(out.status==="ok"){ v.review=rev; cacheSet("visits",ALL_VISITS); toast("Review saved"); closeReview(); renderReviewList(); } else toast(out.message||"Could not save"); }
   catch(e){ toast("Network error - try again"); }
 }
-function renderTimeline(farmerId){
+function renderTimeline(farmerId,crop,variety){
   const box=el("fd_timeline"); if(!box) return;
-  const visits=ALL_VISITS.filter(v=>String(v.farmer_id)===String(farmerId)).sort((a,b)=>String(a.visit_date).localeCompare(String(b.visit_date)));
-  if(!visits.length){ box.innerHTML="<div class='muted' style='margin-top:8px'>No recorded visits yet for this farmer.</div>"; return; }
+  const visits=ALL_VISITS.filter(v=>String(v.farmer_id)===String(farmerId) && (crop===undefined||String(v.crop||"")===String(crop||"")) && (variety===undefined||String(v.seed_variety||"")===String(variety||""))).sort((a,b)=>String(a.visit_date).localeCompare(String(b.visit_date)));
+  if(!visits.length){ box.innerHTML="<div class='muted' style='margin-top:8px'>No recorded visits yet for this crop/variety.</div>"; return; }
   const first=visits[0], last=visits[visits.length-1], fc=condColor(first.condition), lc=condColor(last.condition);
-  const summary="<div style='margin:12px 0 8px;padding:10px 12px;background:#f3f8f4;border:1px solid var(--line);border-radius:10px'>"+
-    "<b>Crop progression</b> &middot; "+visits.length+" visit"+(visits.length>1?"s":"")+"<br>"+
+  const firstPh=(first.photos||[])[0], lastPh=(last.photos||[])[0];
+  // before -> after photo comparison
+  let compare="";
+  if(firstPh||lastPh){ compare="<div style='display:flex;gap:10px;margin:10px 0;align-items:center'>"+
+    "<div style='flex:1;text-align:center'><div class='muted' style='font-size:11px;margin-bottom:3px'>First &middot; "+esc(first.visit_date||"")+"</div>"+(firstPh?"<img src='"+firstPh+"' style='width:100%;max-width:150px;height:118px;object-fit:cover;border-radius:8px'>":"<div class='muted' style='font-size:12px'>no photo</div>")+"<div style='color:"+fc+";font-size:12px;margin-top:2px'>&#9679; "+esc(first.condition||"-")+"</div></div>"+
+    "<div style='font-size:24px;color:var(--muted)'>&rarr;</div>"+
+    "<div style='flex:1;text-align:center'><div class='muted' style='font-size:11px;margin-bottom:3px'>Latest &middot; "+esc(last.visit_date||"")+"</div>"+(lastPh?"<img src='"+lastPh+"' style='width:100%;max-width:150px;height:118px;object-fit:cover;border-radius:8px'>":"<div class='muted' style='font-size:12px'>no photo</div>")+"<div style='color:"+lc+";font-size:12px;margin-top:2px'>&#9679; "+esc(last.condition||"-")+"</div></div>"+
+    "</div>"; }
+  // condition trend strip (one segment per visit, oldest -> newest)
+  const strip="<div style='display:flex;gap:3px;margin:8px 0 2px'>"+visits.map(v=>"<div title='"+esc(v.visit_date||"")+" - "+esc(v.condition||"")+"' style='flex:1;height:12px;border-radius:3px;background:"+condColor(v.condition)+"'></div>").join("")+"</div><div class='muted' style='font-size:11px'>condition over "+visits.length+" visit"+(visits.length>1?"s":"")+" (oldest &rarr; newest)</div>";
+  // yield trend if available
+  const yF=visits.find(v=>v.estimated_yield), yL=[...visits].reverse().find(v=>v.estimated_yield);
+  const yieldLine=(yF&&yL)?("<div style='font-size:13px;margin-top:6px'><b>Yield estimate:</b> "+esc(yF.estimated_yield)+(yF!==yL?" &rarr; "+esc(yL.estimated_yield):"")+" q/ha</div>"):"";
+  const summary="<div style='margin:12px 0 8px;padding:12px;background:#f3f8f4;border:1px solid var(--line);border-radius:12px'>"+
+    "<b>Crop progression</b><br>"+
     "<span class='muted'>"+esc(first.visit_date||"")+"</span> <span style='color:"+fc+"'>&#9679; "+esc(first.condition||"-")+"</span> &rarr; "+
-    "<span class='muted'>"+esc(last.visit_date||"")+"</span> <span style='color:"+lc+"'>&#9679; "+esc(last.condition||"-")+"</span></div>";
-  box.innerHTML=summary+"<div class='muted' style='margin:4px 0'>Timeline (oldest &rarr; newest)</div>"+visits.map(v=>{
+    "<span class='muted'>"+esc(last.visit_date||"")+"</span> <span style='color:"+lc+"'>&#9679; "+esc(last.condition||"-")+"</span>"+
+    strip + yieldLine + compare + "</div>";
+  box.innerHTML=summary+"<div class='muted' style='margin:4px 0'>All visits (oldest &rarr; newest)</div>"+visits.map(v=>{
     const col=condColor(v.condition), r=v.review;
     const ph=(v.photos||[]).map(p=>"<img src='"+p+"' style='width:76px;height:76px;object-fit:cover;border-radius:6px;margin:2px'>").join("");
     return "<div style='border-left:3px solid "+col+";padding:7px 10px;margin:8px 0;background:#fafbfa;border-radius:6px'>"+
